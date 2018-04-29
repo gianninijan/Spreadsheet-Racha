@@ -56,7 +56,7 @@ class Racha:
 
     def _determinarMembros(self):
 
-        for num in range(2,25):
+        for num in range(2,50):
 
             nome = self._wks_pres.cell(num,1).value
             pres = self._somar_linha(self._wks_pres, num)
@@ -64,21 +64,9 @@ class Racha:
             ass = self._somar_linha(self._wks_ass, num)
 
             self.lst_membros.append( Jogador(nome, pres, gols, ass )) # COMPOSIÇÃO
-
-        time.sleep(105)
-
-        for num in range(25,50):
-
-            nome = self._wks_pres.cell(num,1).value
-            pres = self._somar_linha(self._wks_pres, num)
-            gols = self._somar_linha(self._wks_gols, num)
-            ass = self._somar_linha(self._wks_ass, num)
-
-            self.lst_membros.append( Jogador(nome, pres, gols, ass )) # COMPOSIÇÃO
-
 
     def atualizar_dados(self):
-        ''' Metodo ao ser chamado para atualizar os dados quando cadastramos uma sumala '''
+        ''' Metodo ao ser chamado para atualizar os dados quando cadastramos uma sumula '''
         pass
 
     def cadastrar_sumula(self):
