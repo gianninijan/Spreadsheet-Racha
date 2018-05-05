@@ -28,14 +28,21 @@ class Racha:
 
     def __init__(self, planilha):
 
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']  # Qual API('s) do Google acessaremos
-        credentials = ServiceAccountCredentials.from_json_keyfile_name('SpreadsheetExample-f5e69c08620f.json', scope)  # cria uma 'credencial' através do nome de arquivo .JSON
-        gc = gspread.authorize(credentials)      # (gc --> gspread.client.Client) # Loga com a API google usando uma credencial OAuth2
+        # Qual API('s) do Google acessaremos
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']  
+
+        # cria uma 'credencial' através do nome de arquivo .JSON
+        credentials = ServiceAccountCredentials.from_json_keyfile_name('SpreadsheetExample-f5e69c08620f.json', scope)  
+
+        # (gc --> gspread.client.Client) # Loga com a API google usando uma credencial OAuth2
+        gc = gspread.authorize(credentials)      
 
 
         # ATRIBUTOS DA INSTANCIA (PROTECTED)
         self._spread = gc.open(planilha)         #  (self.spread --> Spreadsheet)
-        self._wks_pres = self._spread.worksheet('Presenca')  # Spreadsheet.worksheet('nome') é um meth q retorna a worksheet(sub-planilha) de 'nome' dado
+
+        # Spreadsheet.worksheet('planilha') é um meth q retorna a worksheet(sub-planilha) de 'planilha'. 
+        self._wks_pres = self._spread.worksheet('Presenca')  
         self._wks_gols = self._spread.worksheet('Gols')
         self._wks_ass = self._spread.worksheet('Assistencias')
 
@@ -63,13 +70,41 @@ class Racha:
             gols = self._somar_linha(self._wks_gols, num)
             ass = self._somar_linha(self._wks_ass, num)
 
-            self.lst_membros.append( Jogador(nome, pres, gols, ass )) # COMPOSIÇÃO
+            self.lst_membros.append(Jogador(nome, pres, gols, ass)) # COMPOSIÇÃO
+            time.sleep(2)
 
-    def atualizar_dados(self):
-        ''' Metodo ao ser chamado para atualizar os dados quando cadastramos uma sumula '''
-        pass
 
+    def determinar_pontos(self, data_inicio, data_final):
+
+        # determinando o numero da coluna na worksheet que representa a data inicial
+        col_inicial = self._wks_pres.find(data_inicio).col
+
+        # determinando o numero da coluna na worksheet que representa a data final
+        col_final = self._wks_pres.find(data_final).col
+
+        # lista de tuplas com as infomações - (nome, gols, ass, pts) - de cada prayer entre as dadas especificas
+        lst_pontuacao = []   
+            
+        for prayer in self.lst_membros: # [Jogador1, ..., JogadorN]
+
+            # numero da linha corresponde ao nome do prayer
+            linha = self._wks_pres.find(prayer.nome).row
+
+            # quantidade de gols do prayer entre as datas especificas
+            gols = sum([ int(cell.value) for cell in self._wks_gols.range(linha, col_inicial, linha, col_final) if cell.value])
+
+            # quantidade de assistencias do prayer entre as datas especificas
+            ass = sum([ int(cell.value) for cell in self._wks_ass.range(linha, col_inicial, linha, col_final) if cell.value])
+
+            # adicionando os dados na lista
+            lst_pontuacao.append((prayer.nome, gols, ass, gols + ass))
+
+        # retorna a lista com as informações
+        return lst_pontuacao
+        
+            
     def cadastrar_sumula(self):
+        ''' Metodo para cadastrar novos valores para as sub-planilhas '''
 
         # nova data para cadastrar
         data = input('Data Racha: ')
@@ -84,8 +119,8 @@ class Racha:
 
         print('SUMULA')
         
-        # percorrendo todos os membros da planilha
-        for player in self.lst_membros:
+        # percorrendo todos os jogadores presente na planilha
+        for player in self.lst_membros:   #[Jogador1, ..., JogadorN]
             
             print ('*---------------------------------------------------------------------------------------------------------*') 
 
@@ -96,14 +131,23 @@ class Racha:
             if not pres:
                 continue
 
-            # se o prayer estiver presente:
+            # Prayer presente:
             gols = input('\n%s Gols: ' %player.nome)            # quantidade de gols
+
+            # se o prayer tem gol, então:
+            if gols:
+                player.gols += int(gols)    # atualiza o atributo gols do objeto prayer em questão
+            
             assist = input('\n%s Assistências: ' %player.nome)  # quantidade de assistencias
 
+            # se o prayer tem assistencias, então:
+            if assist:
+                player.assistencias += int(assist)  # atualiza o atributo assistencias do objeto prayer em questão
+
+
             print ('*--------------------------------------------------------------------------------------------------------*')
-            
-            
-            # atualizando valores 
+
+            # atualizando valores  nas planilhas
             self._wks_pres.update_cell(linha, total_datas + 1, pres)
             self._wks_gols.update_cell(linha, total_datas + 1, gols)
             self._wks_ass.update_cell(linha, total_datas + 1, assist)
@@ -185,109 +229,24 @@ if __name__ == '__main__':
 
     rcDiscordia = Racha('Racha2018Teste')
 
+    '''
+    # DETERMINAR O JOGADOR DO MES
 
-'''
-#print(spread.worksheets())
+    lst_pontuacao = rcDiscordia.determinar_pontos('19/03', '29/04')
 
-# lista de membros
-lst_membros = []
-
-# Spreadsheet.worksheet('nome') é um meth q retorna a worksheet(sub-planilha) de 'nome' dado
-wks_pres = spread.worksheet('Presenca')
-wks_gols = spread.worksheet('Gols')
-wks_ass = spread.worksheet('Assistencias')
-
-
-# metodo para calcular gols
-def somar_linha(planilha, linha):
-
-    lstGols = [ int(valor) for valor in planilha.row_values(linha)[1:] if valor ] # lista strings
-    return(sum(lstGols))
-'''
-
-'''
-for num in range(2,25):
+    print('GOLS')
+    for tupla in sorted(lst_pontuacao, key = lambda x: x[1], reverse = True):
+	print(tupla)
     
-    nome = wks_pres.cell(num,1).value
-    pres = somar_linha(wks_pres, num)
-    gols = somar_linha(wks_gols, num)
-    ass = somar_linha(wks_ass, num)
-    lst_membros.append( Jogador(nome, pres, gols, ass ))
-
-'''
-
-''' Funcionando
-
-for player in lst_membros:
-    print(player)
-
-
-print('\n\n\n GOLS')
-
-lista_artilheiro = sorted(lst_membros, key = lambda x: x.gols, reverse = True)
-
-for player in lista_artilheiro:
-    print(player)
-
-
-print('\n\n\n ASSISTÊNCIAS')
-lista_garcom = sorted(lst_membros, key = lambda x: x.assistencias, reverse = True)
-
-for player in lista_garcom:
-    print(player)
-
-'''  
-
-
-'''
-def cadastrar_sumula():
-
-    # nova data para cadastrar
-    data = input('Data Racha: ')
-
-    # quantidade de data na planilha
-    total_datas = len( wks_pres.row_values(1))
+    print('ASSISTENCIAS')
+    for tupla in sorted(lst_pontuacao, key = lambda x: x[2], reverse = True):
+	print(tupla)
     
-    # add nova data em todas as sub-planilhas
-    wks_pres.update_cell(1, total_datas + 1, data)
-    wks_gols.update_cell(1, total_datas + 1, data)
-    wks_ass.update_cell(1, total_datas + 1, data)
+    print('PONTOS')
+    for tupla in sorted(lst_pontuacao, key = lambda x: x[3], reverse = True):
+	print(tupla)
+	
+    '''
 
-    # percorrendo todos os membros da planilha
-    for player in lst_membros:
 
-        pres = input('\n%s presente (1-Sim)? '%player.nome)  # jogador presente
-        linha = wks_pres.find(player.nome).row               # determina a linha na planilha atraves do nome do Jogador
-
-        # se o prayer ñ está presente pule para o proximo prayer
-        if not pres:
-            continue
-
-        # se o prayer estiver presente:
-        gols = input('\n%s Gols: ' %player.nome)            # quantidade de gols
-        assist = input('\n%s Assistências: ' %player.nome)  # quantidade de assistencias
-
-        # atualizando valores 
-        wks_pres.update_cell(linha, total_datas + 1, pres)
-        wks_gols.update_cell(linha, total_datas + 1, gols)
-        wks_ass.update_cell(linha, total_datas + 1, assist)
-'''
-        
-
-'''
-def _conectar(self):
-
-        # Qual API('s) do Google acessaremos
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-
-        # cria uma 'credencial' através do nome de arquivo .JSON
-        credentials = ServiceAccountCredentials.from_json_keyfile_name('SpreadsheetExample-f5e69c08620f.json', scope)
-
-        # Loga com a API google usando uma credencial OAuth2
-        gc = gspread.authorize(credentials)      # gc ----> gspread.client.Client
-
-        # planilha (Spreadsheet)
-        return gc.open('Racha2018Teste') # retorna um Spreadsheet    
-        #spread = gc.open('Racha2018Teste') # spread ---> Spreadsheet
-'''
-
+    
